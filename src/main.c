@@ -101,7 +101,7 @@ static esp_err_t init_camera()
  }
 
 
- void morse_Code( int blink, int time){   // blink, number of times the led blinks; time, how fast the led blinks
+ void morse_Code( int blink, int time, bool Lag){   // blink, number of times the led blinks; time, how fast the led blinks
     int i;
     if (blink == 1){
         gpio_set_level(LED, 0);
@@ -173,85 +173,19 @@ static esp_err_t init_camera()
             vTaskDelay(time/portTICK_RATE_MS);
         }
     }
-    vTaskDelay(2000/portTICK_RATE_MS);
+    if (Lag == true){
+        vTaskDelay(2000/portTICK_RATE_MS);
+    }
     return;
  }
 
-void Log(){
-       // const char *file_foo = MOUNT_POINT"/foo.txt";
-
-    // // Check if destination file exists before renaming
-    // struct stat st;
-    // if (stat(file_foo, &st) == 0) {
-    //     // Delete it if it exists
-    //     unlink(file_foo);
-    // }
-
-    // // Rename original file
-    // ESP_LOGI(TAG, "Renaming file %s to %s", file_hello, file_foo);
-    // if (rename(file_hello, file_foo) != 0) {
-    //     ESP_LOGE(TAG, "Rename failed");
-    //     return;
-    // }
-
-    // // Open renamed file for reading
-    // ESP_LOGI(TAG, "Reading file %s", file_foo);
-    // f = fopen(file_foo, "r");
-    // if (f == NULL) {
-    //     ESP_LOGE(TAG, "Failed to open file for reading");
-    //     return;
-    // }
-
-    // // Read a line from file
-    // char line[64];
-    // fgets(line, sizeof(line), f);
-    // fclose(f);
-
-    // // Strip newline
-    // char *pos = strchr(line, '\n');
-    // if (pos) {
-    //     *pos = '\0';
-    // }
-    // ESP_LOGI(TAG, "Read from file: '%s'", line);
-    
-    ///    make a Log file function
-    // for(int a =0;a<5;){
-    //     morse_Code(3,100);
-    //     fprintf(f,"Bounjour Messie ----->  %i",a);
-    //     for(int i=0;i<5;){
-    //         fprintf(f, "Camera Working %s!\n", card->cid.name);
-    //         i++;
-    //     }
-    //     a++;
-    // }
-    
-}
-
-void app_main(void)
-{
-    esp_err_t ret;
-    esp_err_t i_cam;
-    gpio_set_direction(LED, GPIO_MODE_OUTPUT);         // red led
-
-    ///// INIT CAMERA HERE  ////////
-    i_cam = init_camera();
-    if(ESP_OK != i_cam) {
-        // blink twice for unable to initialized camera
-        printf("Camera init not OK");
-        //morse_Code(2,100);
-        ESP_LOGI(TAG, "Unable to initialize the camera");
-         return;
-     }
-    if (ESP_OK == i_cam){
-        // blink twice longer for camera initialized
-        //morse_Code(2,400);
-        ESP_LOGI(TAG,"Camera working");
-    }
-
-    ////////  INIT CARD HERE   ////////////
+sdmmc_card_t * Open_Card(){
+      ////////  INIT CARD HERE   ////////////
     // Options for mounting the filesystem.
     // If format_if_mount_failed is set to true, SD card will be partitioned and
     // formatted in case when mounting fails.
+    sdmmc_card_t *card;
+    esp_err_t ret_error;
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 #ifdef CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED
         .format_if_mount_failed = true,
@@ -261,7 +195,7 @@ void app_main(void)
         .max_files = 5,
         .allocation_unit_size = 16 * 1024
     };
-    sdmmc_card_t *card;
+    
     const char mount_point[] = MOUNT_POINT;
     ESP_LOGI(TAG, "Initializing SD card");
 
@@ -303,22 +237,147 @@ void app_main(void)
     slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
     ESP_LOGI(TAG, "Mounting filesystem");
-    ret = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
+    ret_error = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
 
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
+    if (ret_error != ESP_OK) {
+        if (ret_error == ESP_FAIL) {
             ESP_LOGE(TAG, "Failed to mount filesystem. "
                      "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
         } else {
             ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                     "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+                     "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret_error));
         }
-        return;
+        return card;
     }
     ESP_LOGI(TAG, "Filesystem mounted");
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
+    return card;
+}
+
+void Log(char info){
+    sdmmc_card_t *card;
+    const char mount_point[] = MOUNT_POINT;
+    
+    // open cards
+    card = Open_Card();
+    const char *file_foo = MOUNT_POINT"/Log.txt";
+    FILE *f;
+
+    // check if file exist, then append to file
+    if (access(file_foo,F_OK) == 0){
+        f = fopen(file_foo, "a");   //append mode
+        //fgets(info,sizeof(info),f);
+        fwrite(&info , 1, sizeof(info), f);
+        fclose(f);
+    }else{
+        f = fopen(file_foo, "w");   //creates and write mode
+        fgets(&info,sizeof(info),f);
+        fclose(f);
+    };
+        // All done, unmount partition and disable SDMMC peripheral
+    esp_vfs_fat_sdcard_unmount(mount_point, card);
+    
+}
+
+void app_main(void)
+{
+    //esp_err_t ret;
+    esp_err_t i_cam;
+    sdmmc_card_t *card;
+    const char mount_point[] = MOUNT_POINT;
+    
+    gpio_set_direction(LED, GPIO_MODE_OUTPUT);         // red led
+
+    ///// INIT CAMERA HERE  ////////
+    i_cam = init_camera();
+    if(ESP_OK != i_cam) {
+        // blink twice for unable to initialized camera
+        printf("Camera init not OK");
+        //morse_Code(2,100);
+        ESP_LOGI(TAG, "Unable to initialize the camera");
+         return;
+     }
+    if (ESP_OK == i_cam){
+        // blink twice longer for camera initialized
+        //morse_Code(2,400);
+        ESP_LOGI(TAG,"Camera working");
+    }
+
+//     ////////  INIT CARD HERE   ////////////
+    
+    card = Open_Card();
+//     // Options for mounting the filesystem.
+//     // If format_if_mount_failed is set to true, SD card will be partitioned and
+//     // formatted in case when mounting fails.
+//     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+// #ifdef CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED
+//         .format_if_mount_failed = true,
+// #else
+//         .format_if_mount_failed = false,
+// #endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
+//         .max_files = 5,
+//         .allocation_unit_size = 16 * 1024
+//     };
+//     sdmmc_card_t *card;
+//     const char mount_point[] = MOUNT_POINT;
+//     ESP_LOGI(TAG, "Initializing SD card");
+
+//     // Use settings defined above to initialize SD card and mount FAT filesystem.
+//     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
+//     // Please check its source code and implement error recovery when developing
+//     // production applications.
+
+//     ESP_LOGI(TAG, "Using SDMMC peripheral");
+//     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+
+//     // This initializes the slot without card detect (CD) and write protect (WP) signals.
+//     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
+//     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
+//     // Set bus width to use:
+// #ifdef CONFIG_EXAMPLE_SDMMC_BUS_WIDTH_4
+//     slot_config.width = 4;
+// #else
+//     slot_config.width = 1;
+// #endif
+
+//     // On chips where the GPIOs used for SD card can be configured, set them in
+//     // the slot_config structure:
+// #ifdef CONFIG_SOC_SDMMC_USE_GPIO_MATRIX
+//     slot_config.clk = CONFIG_EXAMPLE_PIN_CLK;
+//     slot_config.cmd = CONFIG_EXAMPLE_PIN_CMD;
+//     slot_config.d0 = CONFIG_EXAMPLE_PIN_D0;
+// #ifdef CONFIG_EXAMPLE_SDMMC_BUS_WIDTH_4
+//     slot_config.d1 = CONFIG_EXAMPLE_PIN_D1;
+//     slot_config.d2 = CONFIG_EXAMPLE_PIN_D2;
+//     slot_config.d3 = CONFIG_EXAMPLE_PIN_D3;
+// #endif  // CONFIG_EXAMPLE_SDMMC_BUS_WIDTH_4
+// #endif  // CONFIG_SOC_SDMMC_USE_GPIO_MATRIX
+
+//     // Enable internal pullups on enabled pins. The internal pullups
+//     // are insufficient however, please make sure 10k external pullups are
+//     // connected on the bus. This is for debug / example purpose only.
+//     slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+
+//     ESP_LOGI(TAG, "Mounting filesystem");
+//     ret = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
+
+//     if (ret != ESP_OK) {
+//         if (ret == ESP_FAIL) {
+//             ESP_LOGE(TAG, "Failed to mount filesystem. "
+//                      "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+//         } else {
+//             ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+//                      "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+//         }
+//         return;
+//     }
+//     ESP_LOGI(TAG, "Filesystem mounted");
+
+//     // Card has been initialized, print its properties
+//     sdmmc_card_print_info(stdout, card);
 
     // First create a file.
     char name_f[250];
@@ -336,7 +395,7 @@ void app_main(void)
         const char *file = name_files; 
         FILE *f = fopen(file, "wx");  // use wx with fwrite
         if (f == NULL) {
-            morse_Code(4,100);
+            morse_Code(4,100, true);
             ESP_LOGE(TAG, "Failed to open file for writing");
             esp_vfs_fat_sdcard_unmount(mount_point, card);  // unmounting for safety
             return;
@@ -346,10 +405,11 @@ void app_main(void)
             camera_fb_t *pic = esp_camera_fb_get();  // this takes the picture
             if (!pic){
                 // blink 3 times for error camera failed to take picture
-                morse_Code(2,100);
+                morse_Code(2,100, true);
                 ESP_LOGE(TAG, "Camera failed to take picture");
             } else{
                 // use pic->buf to access the image
+                // use pic->len to the get size of the frame, sizeof wont work
                 // create the picture file
                 fwrite(pic->buf, 1, pic->len, f);
                 // all of the follow works for saving the file, but for simplicity i use fwrite
@@ -358,7 +418,7 @@ void app_main(void)
                 //fwrite((char*)pic->buf, pic->len, 1, f );  
                 //fprintf(f, (char*)pic->buf);   
                 //blink once for taking picture
-                morse_Code(1,200);
+                morse_Code(1,200, false);
                 esp_camera_fb_return(pic); 
             }
 
@@ -366,7 +426,7 @@ void app_main(void)
 
         fclose(f);
         ESP_LOGI(TAG, "File written");
-        vTaskDelay(2000/portTICK_RATE_MS);  //  total delay from morse_code and this one apro 4-5 secs
+        //vTaskDelay(2000/portTICK_RATE_MS);  //  total delay from morse_code and this one apro 4-5 secs
     }
  
     // All done, unmount partition and disable SDMMC peripheral
