@@ -3,75 +3,12 @@
 
  void morse_Code( int blink, int time, bool Lag){   // blink, number of times the led blinks; time, how fast the led blinks
     int i;
-    if (blink == 1){
+    for (i=0;i<blink;){
         gpio_set_level(LED, 0);
         vTaskDelay(time/portTICK_PERIOD_MS); ;
         gpio_set_level(LED, 1);
         vTaskDelay(time/portTICK_PERIOD_MS);
-    }
-    if (blink == 2){
-        for (i=0;i<2; i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
-    }
-    if (blink == 3){
-        for (i=0;i<3 ;i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
-    }
-    if (blink == 4){
-        for (i=0;i<4 ;i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
-    }
-    if (blink == 5){
-        for (i=0;i<5 ;i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
-    }
-    if (blink == 6){
-        for (i=0;i<6 ;i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
-    }
-    if (blink == 7){
-        for (i=0;i<7 ;i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
-    }
-    if (blink == 8){
-        for (i=0;i<8 ;i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
-    }
-    if (blink == 9){
-        for (i=0;i<9 ;i++){
-            gpio_set_level(LED, 0);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-            gpio_set_level(LED, 1);
-            vTaskDelay(time/portTICK_PERIOD_MS);
-        }
+        i++;
     }
     if (Lag == true){
         vTaskDelay(2000/portTICK_PERIOD_MS);
@@ -182,23 +119,3 @@ void Log(const char *info){
     esp_vfs_fat_sdcard_unmount(mount_point, card);
     
 }
-
-// camera_fb_t * rotate_frame(camera_fb_t *frame){
-//     //size_t new_len = frame->width;   // length to width
-//     //size_t new_width = frame->len;   // width to length
-//     camera_fb_t *new_frame = malloc(sizeof(camera_fb_t));
-//     *new_frame->buf = *frame->buf;
-//     new_frame->len = frame->width;
-//     new_frame->width = frame->len;
-//     new_frame->format = frame->format;
-//     new_frame->height = frame->height;
-//     new_frame->timestamp = frame->timestamp;
-//     // for (int len=0; len<=new_len; ){
-//     //     for (int wid=0; wid<=new_width; ){
-//     //         new_frame->buf[wid][len] = frame->buf[len][wid];
-//     //         wid++;
-//     //     }
-//     //     len++;
-//     // }
-//     return new_frame;
-// }
